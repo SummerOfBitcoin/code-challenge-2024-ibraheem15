@@ -2,6 +2,7 @@ import os
 import json
 import hashlib
 
+
 # Function to validate a transaction
 def validate_transaction(transaction):
     # Check if the transaction is a dictionary
@@ -83,6 +84,13 @@ def validate_transaction(transaction):
         if missing_attributes:
             print(f"Vout item is missing {', '.join(missing_attributes)}")
             return False
+        
+    # Check if the sum of the output values is less than or equal to the sum of the input values
+    vin_value = sum([vin["prevout"]["value"] for vin in transaction["vin"]])
+    vout_value = sum([vout["value"] for vout in transaction["vout"]])
+    if vin_value < vout_value:
+        print("Sum of input values is less than sum of output values")
+        return False  
 
     return True
 
@@ -118,7 +126,66 @@ def read_transactions(mempool_path):
     return transactions
 
 
-def mine_block(transactions, difficulty_target):
+def get_transaction_size(transaction):
+    # Calculate the size of the version field (4 bytes)
+    version_size = transaction["version"]
+
+    # Calculate the size of the locktime field (4 bytes)
+    locktime_size = transaction["locktime"]
+
+    # Calculate the size of the vin field
+    vin_size = 0
+    for vin_item in transaction["vin"]:
+        # Calculate the size of the txid field (32 bytes)
+        txid_size = 32
+
+        # Calculate the size of the vout field (4 bytes)
+        vout_size = vin_item["vout"]
+
+        # Calculate the size of the prevout field
+        prevout_size =  0
+        if "prevout" in vin_item:
+            # Calculate the size of the scriptpubkey field
+            scriptpubkey_size = len(vin_item["prevout"]["scriptpubkey"]) // 2
+
+            # Calculate the size of the value field (8 bytes)
+            value_size = vin_item["prevout"]["value"]
+
+            # Sum up the sizes of the prevout fields
+            prevout_size = scriptpubkey_size + value_size
+
+        # Calculate the size of the scriptsig field
+        scriptsig_size = 0
+        if "scriptsig" in vin_item:
+            scriptsig_size = len(vin_item["scriptsig"]) // 2
+
+        # Calculate the size of the witness field
+        witness_size = 0
+        if "witness" in vin_item:
+            witness_size = sum([len(w) // 2 for w in vin_item["witness"]])
+
+        # Sum up the sizes of the vin fields
+        vin_size += txid_size + vout_size + prevout_size + scriptsig_size + witness_size
+
+    # Calculate the size of the vout field
+    vout_size = 0
+    for vout_item in transaction["vout"]:
+        # Calculate the size of the scriptpubkey field
+        scriptpubkey_size = len(vout_item["scriptpubkey"]) // 2
+
+        # Calculate the size of the value field (8 bytes)
+        value_size = vout_item["value"]
+
+        # Sum up the sizes of the vout fields
+        vout_size += scriptpubkey_size + value_size
+
+    # Sum up the sizes of all fields
+    transaction_size = version_size + locktime_size + vin_size + vout_size
+
+    return transaction_size
+
+
+def mine_block(transactions, difficulty_target, max_fee, max_score, passing_score):
     # Create a coinbase transaction
     coinbase_transaction = {
         "version": 1,
@@ -145,10 +212,48 @@ def mine_block(transactions, difficulty_target):
     }
 
     # Add the coinbase transaction to the list of transactions
-    valid_transactions = [coinbase_transaction] + transactions
+    valid_transactions = [coinbase_transaction]
 
-    # Calculate the total size of the transactions
-    total_size = sum([len(json.dumps(tx)) for tx in valid_transactions])
+    # Calculate the fee and score for each transaction
+    transaction_fees = []
+    transaction_scores = []
+    for transaction in transactions:
+        # Calculate the fee
+        fee = transaction["vin_value"] - transaction["vout_value"]
+        transaction_fees.append(fee)
+
+        # calculate the size of the transaction
+        transaction["size"] = get_transaction_size(transaction)
+
+        # Calculate the score
+        score = min(max_score, fee / transaction["size"])
+        transaction_scores.append(score)
+
+    # Sort the transactions by score
+    sorted_indices = sorted(
+        range(len(transaction_scores)),
+        key=lambda i: transaction_scores[i],
+        reverse=True,
+    )
+
+    # Select transactions that maximize the score while keeping the total fee below the max-fee limit
+    total_fee = 0
+    total_score = 0
+    for i in sorted_indices:
+        fee = transaction_fees[i]
+        score = transaction_scores[i]
+        if total_fee + fee > max_fee:
+            break
+        valid_transactions.append(transactions[i])
+        total_fee += fee
+        total_score += score
+
+    # Check if the total score is above the passing-score threshold
+    print("Fee collected: ", total_fee)
+    print("Space Utilized: ", total_score)
+    if total_score < passing_score:
+        print("Total score is below passing-score threshold:", total_score)
+        return None
 
     # Create a block header
     block_header = hashlib.sha256(
@@ -163,24 +268,12 @@ def mine_block(transactions, difficulty_target):
             (str(valid_transactions) + str(nonce)).encode()
         ).hexdigest()
 
-    # Calculate the fee collected
-    fee_collected = sum([tx["vin_value"] - tx["vout_value"] for tx in transactions])
-
-    # Calculate the score
-    score = (fee_collected / total_size) * 100
-    print(f"Score: {score}")
-
-    # Check if the score is at least 60
-    if score < 60:
-        print("Score is less than 60")
-        return None
-
     # Create a block
     block = {
         "header": block_header,
         "coinbase": json.dumps(coinbase_transaction),
         "txids": [coinbase_transaction["vin"][0]["txid"]]
-        + [tx["txid"] for tx in transactions[1:]],
+        + [tx["txid"] for tx in valid_transactions[1:]],
     }
 
     return block
@@ -193,14 +286,14 @@ def main():
 
     # Mine a block
     difficulty_target = (
-        "0000ffff00000000000000000000000000000000000000000000000000000000"
+        "f7b3c47b07f4ce00d4d499f2742ee026f60ed9854d408a5adaaff337f7bf9fdb"
     )
-    block = mine_block(transactions, difficulty_target)
-
-    # Check if the block is valid
-    if block is None:
-        print("Block is invalid")
-        return
+    max_fee = 20616923
+    max_score = 100
+    passing_score = 60
+    block = mine_block(
+        transactions, difficulty_target, max_fee, max_score, passing_score
+    )
 
     # Write the block to output.txt
     with open("output.txt", "w") as f:
