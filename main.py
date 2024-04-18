@@ -1,6 +1,7 @@
 import os
 import json
 import hashlib
+import time
 
 
 # Function to validate a transaction
@@ -84,13 +85,13 @@ def validate_transaction(transaction):
         if missing_attributes:
             print(f"Vout item is missing {', '.join(missing_attributes)}")
             return False
-        
+
     # Check if the sum of the output values is less than or equal to the sum of the input values
     vin_value = sum([vin["prevout"]["value"] for vin in transaction["vin"]])
     vout_value = sum([vout["value"] for vout in transaction["vout"]])
     if vin_value < vout_value:
         print("Sum of input values is less than sum of output values")
-        return False  
+        return False
 
     return True
 
@@ -128,10 +129,10 @@ def read_transactions(mempool_path):
 
 def get_transaction_size(transaction):
     # Calculate the size of the version field (4 bytes)
-    version_size = transaction["version"]
+    version_size = 4
 
     # Calculate the size of the locktime field (4 bytes)
-    locktime_size = transaction["locktime"]
+    locktime_size = 4
 
     # Calculate the size of the vin field
     vin_size = 0
@@ -143,7 +144,7 @@ def get_transaction_size(transaction):
         vout_size = vin_item["vout"]
 
         # Calculate the size of the prevout field
-        prevout_size =  0
+        prevout_size = 0
         if "prevout" in vin_item:
             # Calculate the size of the scriptpubkey field
             scriptpubkey_size = len(vin_item["prevout"]["scriptpubkey"]) // 2
@@ -183,6 +184,42 @@ def get_transaction_size(transaction):
     transaction_size = version_size + locktime_size + vin_size + vout_size
 
     return transaction_size
+
+def calculate_merkle_root(transactions):
+    """
+    Calculate the Merkle root of a list of transactions.
+    """
+    if len(transactions) == 1:
+        return hashlib.sha256(hashlib.sha256(json.dumps(transactions[0], sort_keys=True).encode()).digest()).digest()
+
+    hashes = [
+        hashlib.sha256(hashlib.sha256(json.dumps(tx, sort_keys=True).encode()).digest()).digest()
+        for tx in transactions
+    ]
+    while len(hashes) > 1:
+        new_hashes = []
+        for i in range(0, len(hashes), 2):
+            if i + 1 < len(hashes):
+                new_hashes.append(
+                    hashlib.sha256(
+                        hashlib.sha256(hashes[i] + hashes[i + 1]).digest()
+                    ).digest()
+                )
+            else:
+                new_hashes.append(hashes[i])
+        hashes = new_hashes
+
+    return hashes[0]
+
+
+def difficulty_target_to_bits(difficulty_target):
+    """
+    Convert a difficulty target to a compact representation used in the block header.
+    """
+    target_hex = int.from_bytes(bytes.fromhex(difficulty_target), "big")
+    exponent = (target_hex >> 24) & 0xff
+    mantissa = target_hex & 0x00ffffff
+    return (exponent << 24) | mantissa
 
 
 def mine_block(transactions, difficulty_target, max_fee, max_score, passing_score):
@@ -249,28 +286,48 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
         total_score += score
 
     # Check if the total score is above the passing-score threshold
-    print("Fee collected: ", total_fee)
-    print("Space Utilized: ", total_score)
     if total_score < passing_score:
         print("Total score is below passing-score threshold:", total_score)
         return None
 
     # Create a block header
-    block_header = hashlib.sha256(
-        (str(valid_transactions) + difficulty_target).encode()
-    ).hexdigest()
+    prev_block_hash = bytes.fromhex(coinbase_transaction["vin"][0]["txid"])
+    merkle_root = calculate_merkle_root(valid_transactions)
+    timestamp = int(time.time())
+    bits = difficulty_target_to_bits(difficulty_target)
+    nonce = 0
+
+    block_header = (
+        int.to_bytes(1, 4, "little")
+        + prev_block_hash
+        + merkle_root
+        + int.to_bytes(timestamp, 4, "little")
+        + int.to_bytes(bits, 4, "little")
+        + int.to_bytes(nonce, 4, "little")
+    )
+    print("Block header:",len(block_header))
 
     # Mine the block
-    nonce = 0
-    while int(block_header, 16) > int(difficulty_target, 16):
+    block_header_hash = None
+    while block_header_hash is None or block_header_hash > int.from_bytes(
+        bytes.fromhex(difficulty_target), "big"
+    ):
         nonce += 1
-        block_header = hashlib.sha256(
-            (str(valid_transactions) + str(nonce)).encode()
-        ).hexdigest()
+        block_header = (
+            int.to_bytes(1, 4, "little")
+            + prev_block_hash
+            + merkle_root
+            + int.to_bytes(timestamp, 4, "little")
+            + int.to_bytes(bits, 4, "little")
+            + int.to_bytes(nonce, 4, "little")
+        )
+        block_header_hash = int.from_bytes(
+            hashlib.sha256(hashlib.sha256(block_header).digest()).digest(), "big"
+        )
 
     # Create a block
     block = {
-        "header": block_header,
+        "header": block_header.hex(),
         "coinbase": json.dumps(coinbase_transaction),
         "txids": [coinbase_transaction["vin"][0]["txid"]]
         + [tx["txid"] for tx in valid_transactions[1:]],
