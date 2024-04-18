@@ -343,7 +343,7 @@ def main():
 
     # Mine a block
     difficulty_target = (
-        "f7b3c47b07f4ce00d4d499f2742ee026f60ed9854d408a5adaaff337f7bf9fdb"
+        "0000ffff00000000000000000000000000000000000000000000000000000000"
     )
     max_fee = 20616923
     max_score = 100
