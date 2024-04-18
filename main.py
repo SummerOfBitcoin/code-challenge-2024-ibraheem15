@@ -188,7 +188,7 @@ def mine_block(transactions, difficulty_target):
 
 def main():
     # Read transactions from mempool
-    mempool_path = "code-challenge-2024-ibraheem15/mempool"
+    mempool_path = "mempool"
     transactions = read_transactions(mempool_path)
 
     # Mine a block
