@@ -185,15 +185,22 @@ def get_transaction_size(transaction):
 
     return transaction_size
 
+
 def calculate_merkle_root(transactions):
     """
     Calculate the Merkle root of a list of transactions.
     """
     if len(transactions) == 1:
-        return hashlib.sha256(hashlib.sha256(json.dumps(transactions[0], sort_keys=True).encode()).digest()).digest()
+        return hashlib.sha256(
+            hashlib.sha256(
+                json.dumps(transactions[0], sort_keys=True).encode()
+            ).digest()
+        ).digest()
 
     hashes = [
-        hashlib.sha256(hashlib.sha256(json.dumps(tx, sort_keys=True).encode()).digest()).digest()
+        hashlib.sha256(
+            hashlib.sha256(json.dumps(tx, sort_keys=True).encode()).digest()
+        ).digest()
         for tx in transactions
     ]
     while len(hashes) > 1:
@@ -217,8 +224,8 @@ def difficulty_target_to_bits(difficulty_target):
     Convert a difficulty target to a compact representation used in the block header.
     """
     target_hex = int.from_bytes(bytes.fromhex(difficulty_target), "big")
-    exponent = (target_hex >> 24) & 0xff
-    mantissa = target_hex & 0x00ffffff
+    exponent = (target_hex >> 24) & 0xFF
+    mantissa = target_hex & 0x00FFFFFF
     return (exponent << 24) | mantissa
 
 
@@ -305,32 +312,29 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
         + int.to_bytes(bits, 4, "little")
         + int.to_bytes(nonce, 4, "little")
     )
-    print("Block header:",len(block_header))
+    print("Block header:", len(block_header))
 
     # Mine the block
-    block_header_hash = None
-    while block_header_hash is None or block_header_hash > int.from_bytes(
-        bytes.fromhex(difficulty_target), "big"
-    ):
+    while True:
+        block_hash = hashlib.sha256(hashlib.sha256(block_header).digest()).hexdigest()
+        if block_hash < difficulty_target:
+            break
         nonce += 1
         block_header = (
             int.to_bytes(1, 4, "little")
-            + prev_block_hash
+            + block_hash.encode()
             + merkle_root
             + int.to_bytes(timestamp, 4, "little")
             + int.to_bytes(bits, 4, "little")
             + int.to_bytes(nonce, 4, "little")
         )
-        block_header_hash = int.from_bytes(
-            hashlib.sha256(hashlib.sha256(block_header).digest()).digest(), "big"
-        )
 
-    # Create a block
+    print("Block hash:", len(block_hash))
+    # Create the block
     block = {
         "header": block_header.hex(),
-        "coinbase": json.dumps(coinbase_transaction),
-        "txids": [coinbase_transaction["vin"][0]["txid"]]
-        + [tx["txid"] for tx in valid_transactions[1:]],
+        "coinbase": json.dumps(coinbase_transaction, sort_keys=True),
+        "txids": [tx["txid"] for tx in valid_transactions[1:]],
     }
 
     return block
