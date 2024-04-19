@@ -126,225 +126,118 @@ def read_transactions(mempool_path):
                 # break
     return transactions
 
-
-def get_transaction_size(transaction):
-    # Calculate the size of the version field (4 bytes)
-    version_size = 4
-
-    # Calculate the size of the locktime field (4 bytes)
-    locktime_size = 4
-
-    # Calculate the size of the vin field
-    vin_size = 0
-    for vin_item in transaction["vin"]:
-        # Calculate the size of the txid field (32 bytes)
-        txid_size = 32
-
-        # Calculate the size of the vout field (4 bytes)
-        vout_size = vin_item["vout"]
-
-        # Calculate the size of the prevout field
-        prevout_size = 0
-        if "prevout" in vin_item:
-            # Calculate the size of the scriptpubkey field
-            scriptpubkey_size = len(vin_item["prevout"]["scriptpubkey"]) // 2
-
-            # Calculate the size of the value field (8 bytes)
-            value_size = vin_item["prevout"]["value"]
-
-            # Sum up the sizes of the prevout fields
-            prevout_size = scriptpubkey_size + value_size
-
-        # Calculate the size of the scriptsig field
-        scriptsig_size = 0
-        if "scriptsig" in vin_item:
-            scriptsig_size = len(vin_item["scriptsig"]) // 2
-
-        # Calculate the size of the witness field
-        witness_size = 0
-        if "witness" in vin_item:
-            witness_size = sum([len(w) // 2 for w in vin_item["witness"]])
-
-        # Sum up the sizes of the vin fields
-        vin_size += txid_size + vout_size + prevout_size + scriptsig_size + witness_size
-
-    # Calculate the size of the vout field
-    vout_size = 0
-    for vout_item in transaction["vout"]:
-        # Calculate the size of the scriptpubkey field
-        scriptpubkey_size = len(vout_item["scriptpubkey"]) // 2
-
-        # Calculate the size of the value field (8 bytes)
-        value_size = vout_item["value"]
-
-        # Sum up the sizes of the vout fields
-        vout_size += scriptpubkey_size + value_size
-
-    # Sum up the sizes of all fields
-    transaction_size = version_size + locktime_size + vin_size + vout_size
-
-    return transaction_size
-
-
-def calculate_merkle_root(transactions):
-    """
-    Calculate the Merkle root of a list of transactions.
-    """
-    if len(transactions) == 1:
-        return hashlib.sha256(
-            hashlib.sha256(
-                json.dumps(transactions[0], sort_keys=True).encode()
-            ).digest()
-        ).digest()
-
-    hashes = [
-        hashlib.sha256(
-            hashlib.sha256(json.dumps(tx, sort_keys=True).encode()).digest()
-        ).digest()
-        for tx in transactions
-    ]
-    while len(hashes) > 1:
-        new_hashes = []
-        for i in range(0, len(hashes), 2):
-            if i + 1 < len(hashes):
-                new_hashes.append(
-                    hashlib.sha256(
-                        hashlib.sha256(hashes[i] + hashes[i + 1]).digest()
-                    ).digest()
-                )
-            else:
-                new_hashes.append(hashes[i])
-        hashes = new_hashes
-
-    return hashes[0]
-
-
-def difficulty_target_to_bits(difficulty_target):
-    """
-    Convert a difficulty target to a compact representation used in the block header.
-    """
-    target_hex = int.from_bytes(bytes.fromhex(difficulty_target), "big")
-    exponent = (target_hex >> 24) & 0xFF
-    mantissa = target_hex & 0x00FFFFFF
-    return (exponent << 24) | mantissa
-
+def mine_nonce(block_header, difficulty_target):
+    nonce = 0
+    while True:
+        # Update the block header with the nonce
+        block_header["nonce"] = nonce
+        
+        # Calculate the block hash
+        block_hash = hashlib.sha256()
+        block_hash.update(json.dumps(block_header).encode())
+        
+        # Check if the block hash meets the difficulty target
+        if block_hash.hexdigest() < difficulty_target:
+            return nonce
+        
+        # Increment the nonce
+        nonce += 1
 
 def mine_block(transactions, difficulty_target, max_fee, max_score, passing_score):
-    # Create a coinbase transaction
+    # Initialize the block
+    block = {
+        "header": "",
+        "coinbase": "",
+        "txids": [],
+    }
+
+    # Initialize the block header
+    block_header = {
+        "version": 1,
+        "prev_block": "b9b515b6171b47940809366f5d58591a56063db03fc39f678a03cb2b455f9428",
+        "merkle_root": "",
+        "timestamp": int(time.time()),
+        "bits": difficulty_target,
+        "nonce": 0,
+    }
+    
+    # Initialize the coinbase transaction
     coinbase_transaction = {
         "version": 1,
         "locktime": 0,
         "vin": [
             {
-                "txid": "0000000000000000000000000000000000000000000000000000000000000000",
-                "sequence": 4294967295,
+                "txid": "b9b515b6171b47940809366f5d58591a56063db03fc39f678a03cb2b455f9428",
+                "vout": 0,
+                "prevout": {
+                    "value": 0,
+                    "scriptpubkey": "03e0e5f7b8d0c1d5f7f2",
+                },
+                "scriptsig": "",
+                "witness": "",
+                "is_coinbase": True,
+                "sequence": 0,
+                
             }
         ],
         "vout": [
             {
-                "value": 50,
-                "n": 0,
-                "scriptPubKey": {
-                    "asm": "OP_DUP OP_HASH160 <pubKeyHash> OP_EQUALVERIFY OP_CHECKSIG",
-                    "hex": "76a914<pubKeyHash>88ac",
-                    "reqSigs": 1,
-                    "type": "pubkeyhash",
-                    "addresses": ["coinbase"],
-                },
+                "value": 0,
+                "scriptpubkey": "03e0e5f7b8d0c1d5f7f2",
+                "scriptpubkey_asm": "OP_PUSHBYTES_33 0xe0e5f7b8d0c1d5f7f2",
+                "scriptpubkey_type": "pubkey",
+                "scriptpubkey_address": "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2",
             }
         ],
     }
-
-    # Add the coinbase transaction to the list of transactions
-    valid_transactions = [coinbase_transaction]
-
-    # Calculate the fee and score for each transaction
-    transaction_fees = []
-    transaction_scores = []
-    for transaction in transactions:
-        # Calculate the fee
-        fee = transaction["vin_value"] - transaction["vout_value"]
-        transaction_fees.append(fee)
-
-        # calculate the size of the transaction
-        transaction["size"] = get_transaction_size(transaction)
-
-        # Calculate the score
-        score = min(max_score, fee / transaction["size"])
-        transaction_scores.append(score)
-
-    # Sort the transactions by score
-    sorted_indices = sorted(
-        range(len(transaction_scores)),
-        key=lambda i: transaction_scores[i],
-        reverse=True,
-    )
-
-    # Select transactions that maximize the score while keeping the total fee below the max-fee limit
-    total_fee = 0
+    
+    # Calculate the coinbase transaction fee
+    coinbase_fee = max_fee
+    coinbase_transaction["vout"][0]["value"] = coinbase_fee
+    
+    # Add the coinbase transaction to the block
+    block["coinbase"] = json.dumps(coinbase_transaction, indent=4)
+    
+    # Add the coinbase transaction ID to the list of transaction IDs
+    block["txids"].append(coinbase_transaction["vin"][0]["txid"])
+    
+    # Calculate the total fee and total score
+    total_fee = coinbase_fee
     total_score = 0
-    for i in sorted_indices:
-        fee = transaction_fees[i]
-        score = transaction_scores[i]
-        if total_fee + fee > max_fee:
-            break
-        valid_transactions.append(transactions[i])
-        total_fee += fee
-        total_score += score
-
-    # Check if the total score is above the passing-score threshold
-    if total_score < passing_score:
-        print("Total score is below passing-score threshold:", total_score)
-        return None
-
-    # Create a block header
-    prev_block_hash = bytes.fromhex("0000000000000000000000000000000000000000000000000000000000000000")
-    merkle_root = calculate_merkle_root(valid_transactions)
-    timestamp = int(time.time())
-    bits = difficulty_target_to_bits(difficulty_target)
-    nonce = 0
-
-    # Correctly form the block header with the nonce
-    block_header = (
-        int.to_bytes(1, 4, "little")
-        + prev_block_hash
-        + merkle_root
-        + int.to_bytes(timestamp, 4, "little")
-        + int.to_bytes(bits, 4, "little")
-        + int.to_bytes(nonce, 4, "little")
-    )
-
-    # Mine the block
-    target = int(difficulty_target, 16)
-    while True:
-        hash_result = hashlib.sha256(hashlib.sha256(block_header).digest()).digest()
-        if int.from_bytes(hash_result, 'big') < target:
-            break
-        nonce += 1
-        block_header = (
-            int.to_bytes(1, 4, "little")
-            + hash_result
-            + merkle_root
-            + int.to_bytes(timestamp, 4, "little")
-            + int.to_bytes(bits, 4, "little")
-            + int.to_bytes(nonce, 4, "little")
-        )
-
-    print("Block hash:", len(hash_result))
-    print("Block header:", len(block_header))
-    # Create the block
-    block = {
-        "header": block_header.hex(),
-        "coinbase": json.dumps(coinbase_transaction, sort_keys=True),
-        "txids": [tx["txid"] for tx in valid_transactions[1:]],
-    }
-
+    
+    # Initialize the list of selected transactions
+    selected_transactions = []
+    
+    # Select transactions with the highest fee and score
+    for transaction in transactions:
+        if total_fee + transaction["vin_value"] - transaction["vout_value"] <= max_fee:
+            selected_transactions.append(transaction)
+            total_fee += transaction["vin_value"] - transaction["vout_value"]
+            total_score += transaction["score"]
+            block["txids"].append(transaction["txid"])
+            if total_score >= passing_score:
+                break
+            
+    # Calculate the merkle root
+    merkle_root = hashlib.sha256()
+    for txid in block["txids"]:
+        merkle_root.update(txid.encode())
+        
+    # Update the block header with the merkle root
+    block_header["merkle_root"] = merkle_root.hexdigest()
+    
+    # Update the block header with the nonce
+    block_header["nonce"] = mine_nonce(block_header, difficulty_target)
+    
+    # Update the block header in the block
+    block["header"] = json.dumps(block_header, indent=4)
+    
     return block
 
 
 def main():
     # Read transactions from mempool
-    mempool_path = "mempool"
+    mempool_path = "code-challenge-2024-ibraheem15/mempool"
     transactions = read_transactions(mempool_path)
 
     # Mine a block
