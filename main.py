@@ -298,12 +298,13 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
         return None
 
     # Create a block header
-    prev_block_hash = bytes.fromhex(coinbase_transaction["vin"][0]["txid"])
+    prev_block_hash = bytes.fromhex("0000000000000000000000000000000000000000000000000000000000000000")
     merkle_root = calculate_merkle_root(valid_transactions)
     timestamp = int(time.time())
     bits = difficulty_target_to_bits(difficulty_target)
     nonce = 0
 
+    # Correctly form the block header with the nonce
     block_header = (
         int.to_bytes(1, 4, "little")
         + prev_block_hash
@@ -314,23 +315,22 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
     )
 
     # Mine the block
+    target = int(difficulty_target, 16)
     while True:
-        block_hash = hashlib.sha256(block_header).digest()
-        if block_hash < bytes.fromhex(difficulty_target):
-            print("Lenght of block hash: ", len(block_hash))
+        hash_result = hashlib.sha256(hashlib.sha256(block_header).digest()).digest()
+        if int.from_bytes(hash_result, 'big') < target:
             break
-        
         nonce += 1
         block_header = (
             int.to_bytes(1, 4, "little")
-            + block_hash
+            + hash_result
             + merkle_root
             + int.to_bytes(timestamp, 4, "little")
             + int.to_bytes(bits, 4, "little")
             + int.to_bytes(nonce, 4, "little")
         )
 
-    print("Block hash:", len(block_hash))
+    print("Block hash:", len(hash_result))
     print("Block header:", len(block_header))
     # Create the block
     block = {
@@ -344,7 +344,7 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
 
 def main():
     # Read transactions from mempool
-    mempool_path = "mempool"
+    mempool_path = "code-challenge-2024-ibraheem15/mempool"
     transactions = read_transactions(mempool_path)
 
     # Mine a block
