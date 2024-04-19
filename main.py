@@ -208,13 +208,14 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
     # Initialize the list of selected transactions
     selected_transactions = []
     
+    print("Total transactions: ", len(transactions))
     # Select transactions with the highest fee and score
     for transaction in transactions:
-        if total_fee + transaction["vin_value"] - transaction["vout_value"] <= max_fee:
+        # if total_fee + transaction["vin_value"] - transaction["vout_value"] <= max_fee:
             selected_transactions.append(transaction)
             total_fee += transaction["vin_value"] - transaction["vout_value"]
-            total_score += transaction["score"]
             block["txids"].append(transaction["txid"])
+            print(transaction["txid"], " " " ", transaction["vin_value"], " ", transaction["vout_value"])
             if total_score >= passing_score:
                 break
             
@@ -237,7 +238,7 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
 
 def main():
     # Read transactions from mempool
-    mempool_path = "code-challenge-2024-ibraheem15/mempool"
+    mempool_path = "mempool"
     transactions = read_transactions(mempool_path)
 
     # Mine a block
