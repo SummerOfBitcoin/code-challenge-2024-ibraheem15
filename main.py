@@ -202,21 +202,19 @@ def calculate_merkle_root(transactions):
     ]
 
     def hash256(hex_string):
-        byte_string = bytes.fromhex(hex_string)
-        return hashlib.sha256(hashlib.sha256(byte_string).digest()).hexdigest()
+        byte_string = hashlib.sha256(bytes.fromhex(hex_string)).digest()
+        return hashlib.sha256(byte_string).digest().hex()
 
     while len(reversed_txids) > 1:
         next_level = []
 
         for i in range(0, len(reversed_txids), 2):
             if i + 1 == len(reversed_txids):
-                # pairHash = hash256(level[i] + level[i])
                 pairHash = hash256(reversed_txids[i] + reversed_txids[i])
-
             else:
-                # pairHash = hash256(level[i] + level[i + 1]);
                 pairHash = hash256(reversed_txids[i] + reversed_txids[i + 1])
             next_level.append(pairHash)
+            
         reversed_txids = next_level
 
     print("Merkle root:", reversed_txids[0])
