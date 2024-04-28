@@ -308,10 +308,15 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
     print("Block header:",len(block_header))
 
     # Mine the block
-    block_header_hash = None
-    while block_header_hash is None or block_header_hash > int.from_bytes(
-        bytes.fromhex(difficulty_target), "big"
-    ):
+    
+    while True:
+        block_header_hash = int.from_bytes(
+            hashlib.sha256(hashlib.sha256(block_header).digest()).digest(), "big"
+        )
+        if block_header_hash < int.from_bytes(
+            bytes.fromhex(difficulty_target), "big"
+        ):
+            break
         nonce += 1
         block_header = (
             int.to_bytes(1, 4, "little")
@@ -321,9 +326,25 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
             + int.to_bytes(bits, 4, "little")
             + int.to_bytes(nonce, 4, "little")
         )
-        block_header_hash = int.from_bytes(
-            hashlib.sha256(hashlib.sha256(block_header).digest()).digest(), "big"
-        )
+    print("Block mined:", block_header_hash)
+    
+    
+    # block_header_hash = None
+    # while block_header_hash is None or block_header_hash > int.from_bytes(
+    #     bytes.fromhex(difficulty_target), "big"
+    # ):
+    #     nonce += 1
+    #     block_header = (
+    #         int.to_bytes(1, 4, "little")
+    #         + prev_block_hash
+    #         + merkle_root
+    #         + int.to_bytes(timestamp, 4, "little")
+    #         + int.to_bytes(bits, 4, "little")
+    #         + int.to_bytes(nonce, 4, "little")
+    #     )
+    #     block_header_hash = int.from_bytes(
+    #         hashlib.sha256(hashlib.sha256(block_header).digest()).digest(), "big"
+    #     )
 
     # Create a block
     block = {
@@ -339,6 +360,7 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
 def main():
     # Read transactions from mempool
     mempool_path = "mempool"
+    # mempool_path = "code-challenge-2024-ibraheem15/mempool"
     transactions = read_transactions(mempool_path)
 
     # Mine a block
