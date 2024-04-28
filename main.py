@@ -327,19 +327,18 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
 
     # Create a block
     block = {
-        "header": "0000ffff00000000000000000000000000000000000000000000000000000000",
+        "header": block_header.hex(),
         "coinbase": json.dumps(coinbase_transaction),
         "txids": [coinbase_transaction["vin"][0]["txid"]]
         + [tx["txid"] for tx in valid_transactions[1:]],
     }
     
-
     return block
 
 
 def main():
     # Read transactions from mempool
-    mempool_path = "mempool"
+    mempool_path = "code-challenge-2024-ibraheem15/mempool"
     transactions = read_transactions(mempool_path)
 
     # Mine a block
