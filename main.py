@@ -98,8 +98,6 @@ def validate_transaction(transaction):
 
 # Function to read all transactions from mempool folder
 def read_transactions(mempool_path):
-    transactions = []
-    count = 0
     for filename in os.listdir(mempool_path):
         if filename.endswith(".json"):
             with open(os.path.join(mempool_path, filename), "r") as f:
@@ -119,29 +117,27 @@ def read_transactions(mempool_path):
                     [vout["value"] for vout in transaction["vout"]]
                 )
 
-                # Add the transaction to the list
-                transactions.append(transaction)
-                count += 1
-                # if count == 12:
-                # break
-    return transactions
+                # Yield the transaction instead of appending to a list
+                yield transaction
+
 
 def mine_nonce(block_header, difficulty_target):
     nonce = 0
     while True:
         # Update the block header with the nonce
         block_header["nonce"] = nonce
-        
+
         # Calculate the block hash
         block_hash = hashlib.sha256()
         block_hash.update(json.dumps(block_header).encode())
-        
+
         # Check if the block hash meets the difficulty target
         if block_hash.hexdigest() < difficulty_target:
             return nonce
-        
+
         # Increment the nonce
         nonce += 1
+
 
 def mine_block(transactions, difficulty_target, max_fee, max_score, passing_score):
     # Initialize the block
@@ -160,7 +156,7 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
         "bits": difficulty_target,
         "nonce": 0,
     }
-    
+
     # Initialize the coinbase transaction
     coinbase_transaction = {
         "version": 1,
@@ -177,7 +173,6 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
                 "witness": "",
                 "is_coinbase": True,
                 "sequence": 0,
-                
             }
         ],
         "vout": [
@@ -190,56 +185,63 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
             }
         ],
     }
-    
+
     # Calculate the coinbase transaction fee
     coinbase_fee = max_fee
     coinbase_transaction["vout"][0]["value"] = coinbase_fee
-    
+
     # Add the coinbase transaction to the block
     block["coinbase"] = json.dumps(coinbase_transaction, indent=4)
-    
+
     # Add the coinbase transaction ID to the list of transaction IDs
     block["txids"].append(coinbase_transaction["vin"][0]["txid"])
-    
+
     # Calculate the total fee and total score
     total_fee = coinbase_fee
     total_score = 0
-    
+
     # Initialize the list of selected transactions
     selected_transactions = []
-    
+
     print("Total transactions: ", len(transactions))
     # Select transactions with the highest fee and score
     for transaction in transactions:
         # if total_fee + transaction["vin_value"] - transaction["vout_value"] <= max_fee:
-            selected_transactions.append(transaction)
-            total_fee += transaction["vin_value"] - transaction["vout_value"]
-            block["txids"].append(transaction["txid"])
-            print(transaction["txid"], " " " ", transaction["vin_value"], " ", transaction["vout_value"])
-            if total_score >= passing_score:
-                break
-            
+        selected_transactions.append(transaction)
+        total_fee += transaction["vin_value"] - transaction["vout_value"]
+        block["txids"].append(transaction["txid"])
+        print(
+            transaction["txid"],
+            " " " ",
+            transaction["vin_value"],
+            " ",
+            transaction["vout_value"],
+        )
+        if total_score >= passing_score:
+            break
+
     # Calculate the merkle root
     merkle_root = hashlib.sha256()
     for txid in block["txids"]:
         merkle_root.update(txid.encode())
-        
+
     # Update the block header with the merkle root
     block_header["merkle_root"] = merkle_root.hexdigest()
-    
+
     # Update the block header with the nonce
     block_header["nonce"] = mine_nonce(block_header, difficulty_target)
-    
+
     # Update the block header in the block
     block["header"] = json.dumps(block_header, indent=4)
-    
+
     return block
 
 
 def main():
     # Read transactions from mempool
-    mempool_path = "mempool"
-    transactions = read_transactions(mempool_path)
+    mempool_path = "code-challenge-2024-ibraheem15/mempool"
+    # mempool_path = "mempool"
+    transactions = list(read_transactions(mempool_path))
 
     # Mine a block
     difficulty_target = (
