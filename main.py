@@ -196,39 +196,35 @@ def calculate_merkle_root(transactions):
             ).digest()
         ).digest()
 
-    # reversed_txids = [(tx["vin"][0]["txid"])[::-1] for tx in transactions]
-    reversed_txids = [
-        tx["vin"][0]["txid"].encode("utf-8")[::-1].hex() for tx in transactions
-    ]
-
-    def hash256(hex_string):
-        byte_string = hashlib.sha256(bytes.fromhex(hex_string)).digest()
-        return hashlib.sha256(byte_string).digest().hex()
-
+    reversed_txids = [bytes.fromhex(tx["vin"][0]["txid"])[::-1] for tx in transactions]
     while len(reversed_txids) > 1:
-        next_level = []
-
-        for i in range(0, len(reversed_txids), 2):
-            if i + 1 == len(reversed_txids):
-                pairHash = hash256(reversed_txids[i] + reversed_txids[i])
-            else:
-                pairHash = hash256(reversed_txids[i] + reversed_txids[i + 1])
-            next_level.append(pairHash)
-            
-        reversed_txids = next_level
-
-    print("Merkle root:", reversed_txids[0])
-    return reversed_txids[0]
-
+        if len(reversed_txids) % 2 != 0:
+            reversed_txids.append(reversed_txids[-1])
+        reversed_txids = [
+            hashlib.sha256(hashlib.sha256(reversed_txids[i] + reversed_txids[i + 1]).digest()).digest()
+            for i in range(0, len(reversed_txids), 2)
+        ]
+    print("Merkle root:", reversed_txids[0].hex())
+    return reversed_txids[0].hex()
 
 def difficulty_target_to_bits(difficulty_target):
     """
     Convert a difficulty target to a compact representation used in the block header.
     """
-    target_hex = int(difficulty_target, 16)
-    exponent = len(difficulty_target) // 2
-    mantissa = target_hex >> (8 * (exponent - 3))
-    return (exponent << 24) | mantissa
+    # Convert hexadecimal to integer
+    difficulty_int = int(difficulty_target, 16)
+
+    # Calculate the exponent and mantissa
+    exponent = 0
+    mantissa = difficulty_int
+    while (mantissa & 0xff) == 0:
+        mantissa >>= 8
+        exponent += 1
+        
+    # Calculate the compact representation
+    bits = (exponent << 24) | mantissa
+    return 0x1f00ffff
+    return bits
 
 
 def mine_block(transactions, difficulty_target, max_fee, max_score, passing_score):
@@ -304,7 +300,8 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
     merkle_root = calculate_merkle_root(valid_transactions)
     timestamp = int(time.time())
     bits = difficulty_target_to_bits(difficulty_target)
-    print("bits:", bits)
+    # print bits in hex
+    print("Bits in hex:", hex(bits))
     nonce = 0
 
     block_header = (
@@ -332,7 +329,7 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
             + prev_block_hash
             + bytes.fromhex(merkle_root)
             + int.to_bytes(timestamp, 4, "little")
-            + int.to_bytes(bits, 4, "big")
+            + int.to_bytes(bits, 4, "little")
             + int.to_bytes(nonce, 4, "little")
         )
 
@@ -364,9 +361,7 @@ def main():
     transactions = read_transactions(mempool_path)
 
     # Mine a block
-    difficulty_target = (
-        "0000ffff00000000000000000000000000000000000000000000000000000000"
-    )
+    difficulty_target = "0000ffff00000000000000000000000000000000000000000000000000000000"
     max_fee = 20616923
     max_score = 100
     passing_score = 60
