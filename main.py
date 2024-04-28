@@ -126,6 +126,101 @@ def read_transactions(mempool_path):
                 # break
     return transactions
 
+
+def get_transaction_size(transaction):
+    # Calculate the size of the version field (4 bytes)
+    version_size = 4
+
+    # Calculate the size of the locktime field (4 bytes)
+    locktime_size = 4
+
+    # Calculate the size of the vin field
+    vin_size = 0
+    for vin_item in transaction["vin"]:
+        # Calculate the size of the txid field (32 bytes)
+        txid_size = 32
+
+        # Calculate the size of the vout field (4 bytes)
+        vout_size = vin_item["vout"]
+
+        # Calculate the size of the prevout field
+        prevout_size = 0
+        if "prevout" in vin_item:
+            # Calculate the size of the scriptpubkey field
+            scriptpubkey_size = len(vin_item["prevout"]["scriptpubkey"]) // 2
+
+            # Calculate the size of the value field (8 bytes)
+            value_size = vin_item["prevout"]["value"]
+
+            # Sum up the sizes of the prevout fields
+            prevout_size = scriptpubkey_size + value_size
+
+        # Calculate the size of the scriptsig field
+        scriptsig_size = 0
+        if "scriptsig" in vin_item:
+            scriptsig_size = len(vin_item["scriptsig"]) // 2
+
+        # Calculate the size of the witness field
+        witness_size = 0
+        if "witness" in vin_item:
+            witness_size = sum([len(w) // 2 for w in vin_item["witness"]])
+
+        # Sum up the sizes of the vin fields
+        vin_size += txid_size + vout_size + prevout_size + scriptsig_size + witness_size
+
+    # Calculate the size of the vout field
+    vout_size = 0
+    for vout_item in transaction["vout"]:
+        # Calculate the size of the scriptpubkey field
+        scriptpubkey_size = len(vout_item["scriptpubkey"]) // 2
+
+        # Calculate the size of the value field (8 bytes)
+        value_size = vout_item["value"]
+
+        # Sum up the sizes of the vout fields
+        vout_size += scriptpubkey_size + value_size
+
+    # Sum up the sizes of all fields
+    transaction_size = version_size + locktime_size + vin_size + vout_size
+
+    return transaction_size
+
+def calculate_merkle_root(transactions):
+    """
+    Calculate the Merkle root of a list of transactions.
+    """
+    if len(transactions) == 1:
+        return hashlib.sha256(hashlib.sha256(json.dumps(transactions[0], sort_keys=True).encode()).digest()).digest()
+
+    hashes = [
+        hashlib.sha256(hashlib.sha256(json.dumps(tx, sort_keys=True).encode()).digest()).digest()
+        for tx in transactions
+    ]
+    while len(hashes) > 1:
+        new_hashes = []
+        for i in range(0, len(hashes), 2):
+            if i + 1 < len(hashes):
+                new_hashes.append(
+                    hashlib.sha256(
+                        hashlib.sha256(hashes[i] + hashes[i + 1]).digest()
+                    ).digest()
+                )
+            else:
+                new_hashes.append(hashes[i])
+        hashes = new_hashes
+
+    return hashes[0]
+
+
+def difficulty_target_to_bits(difficulty_target):
+    """
+    Convert a difficulty target to a compact representation used in the block header.
+    """
+    target_hex = int.from_bytes(bytes.fromhex(difficulty_target), "big")
+    exponent = (target_hex >> 24) & 0xff
+    mantissa = target_hex & 0x00ffffff
+    return (exponent << 24) | mantissa
+
 def mine_nonce(block_header, difficulty_target):
     nonce = 0
     while True:
@@ -144,7 +239,6 @@ def mine_nonce(block_header, difficulty_target):
         
         # Increment the nonce
         nonce += 1
-        
 
 def mine_block(transactions, difficulty_target, max_fee, max_score, passing_score):
     # Initialize the block
@@ -236,15 +330,21 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
     # Update the block header in the block
     block["header"] = json.dumps(block_header, indent=4)
     
-    block["header"] = "0000ffff00000000000000000000000000000000000000000000000000000000"
+    #convert block header to bytes
+    block_header_bytes = json.dumps(block_header, sort_keys=True).encode()
+    # Calculate the block hash
+    block_hash = hashlib.sha256(block_header_bytes).hexdigest()
+    print("Block hash: ", block_hash)
+    # Return the mined block
     
+    block["header"] = block_hash
+
     return block
 
 
 def main():
     # Read transactions from mempool
-    # mempool_path = "code-challenge-2024-ibraheem15/mempool"
-    mempool_path = "mempool"
+    mempool_path = "code-challenge-2024-ibraheem15/mempool"
     transactions = read_transactions(mempool_path)
 
     # Mine a block
