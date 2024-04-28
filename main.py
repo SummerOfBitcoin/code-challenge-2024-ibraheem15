@@ -347,17 +347,24 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
 
     block_header_hash = calculate_hash(block_header, prev_block_hash, nonce)
     while int(block_header_hash, 16) > int(difficulty_target, 16):
+        block_header_hash = calculate_hash(block_header, prev_block_hash, nonce)
         nonce += 1
+        bits = 4294901791
         block_header = (
             int.to_bytes(1, 4, "little")
             + prev_block_hash
             + merkle_root
             + int.to_bytes(timestamp, 4, "little")
-            + int.to_bytes(bits, 4, "little")
+            + int.to_bytes(bits, 4, "big")
             + int.to_bytes(nonce, 4, "little")
         )
-        block_header_hash = calculate_hash(block_header, prev_block_hash, nonce)
-            
+        
+    # check if the block header hash is less than the difficulty target
+    # print(hashlib.sha256(hashlib.sha256(block_header.hex().encode()).digest()).hexdigest())
+    # if hashlib.sha256(hashlib.sha256(block_header.hex().encode()).digest()).hexdigest() < difficulty_target:
+    #     print("Block header hash is less than the difficulty target") 
+    
+      
     print("Block mined:", block_header_hash)
 
     # Create a block
