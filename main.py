@@ -185,15 +185,22 @@ def get_transaction_size(transaction):
 
     return transaction_size
 
+
 def calculate_merkle_root(transactions):
     """
     Calculate the Merkle root of a list of transactions.
     """
     if len(transactions) == 1:
-        return hashlib.sha256(hashlib.sha256(json.dumps(transactions[0], sort_keys=True).encode()).digest()).digest()
+        return hashlib.sha256(
+            hashlib.sha256(
+                json.dumps(transactions[0], sort_keys=True).encode()
+            ).digest()
+        ).digest()
 
     hashes = [
-        hashlib.sha256(hashlib.sha256(json.dumps(tx, sort_keys=True).encode()).digest()).digest()
+        hashlib.sha256(
+            hashlib.sha256(json.dumps(tx, sort_keys=True).encode()).digest()
+        ).digest()
         for tx in transactions
     ]
     while len(hashes) > 1:
@@ -295,7 +302,7 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
     merkle_root = calculate_merkle_root(valid_transactions)
     timestamp = int(time.time())
     bits = difficulty_target_to_bits(difficulty_target)
-    print("bits:",bits)
+    print("bits:", bits)
     nonce = 0
 
     block_header = (
@@ -306,25 +313,51 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
         + int.to_bytes(bits, 4, "little")
         + int.to_bytes(nonce, 4, "little")
     )
-    print("Block header:",len(block_header))
+    print("Block header:", len(block_header))
     # Mine the block
-    
-    while True:
-        block_header_hash = int.from_bytes(
-            hashlib.sha256(hashlib.sha256(block_header).digest()).digest(), "big"
+
+    # while True:
+    #     block_header_hash = int.from_bytes(
+    #         hashlib.sha256(hashlib.sha256(block_header).digest()).digest(), "big"
+    #     )
+    #     if int(block_header_hash) < int(difficulty_target, 16):
+    #         break
+    #     nonce += 1
+    #     bits = 4294901791
+    #     block_header = (
+    #         int.to_bytes(1, 4, "little")
+    #         + prev_block_hash
+    #         + merkle_root
+    #         + int.to_bytes(timestamp, 4, "little")
+    #         + int.to_bytes(bits, 4, "big")
+    #         + int.to_bytes(nonce, 4, "little")
+    #     )
+    def calculate_hash(data, previous_hash, nonce):
+        """
+        Calculates the SHA-256 hash of the
+        block's data, previous hash, and nonce.
+        """
+        sha = hashlib.sha256()
+        sha.update(
+            str(data).encode("utf-8")
+            + str(previous_hash).encode("utf-8")
+            + str(nonce).encode("utf-8")
         )
-        if int(block_header_hash) < int(difficulty_target, 16):
-            break
+        return sha.hexdigest()
+
+    block_header_hash = calculate_hash(block_header, prev_block_hash, nonce)
+    while int(block_header_hash, 16) > int(difficulty_target, 16):
         nonce += 1
-        bits = 4294901791
         block_header = (
             int.to_bytes(1, 4, "little")
             + prev_block_hash
             + merkle_root
             + int.to_bytes(timestamp, 4, "little")
-            + int.to_bytes(bits, 4, "big")
+            + int.to_bytes(bits, 4, "little")
             + int.to_bytes(nonce, 4, "little")
         )
+        block_header_hash = calculate_hash(block_header, prev_block_hash, nonce)
+            
     print("Block mined:", block_header_hash)
 
     # Create a block
@@ -334,7 +367,7 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
         "txids": [coinbase_transaction["vin"][0]["txid"]]
         + [tx["txid"] for tx in valid_transactions[1:]],
     }
-    
+
     return block
 
 
