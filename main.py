@@ -216,9 +216,9 @@ def difficulty_target_to_bits(difficulty_target):
     """
     Convert a difficulty target to a compact representation used in the block header.
     """
-    target_hex = int.from_bytes(bytes.fromhex(difficulty_target), "big")
-    exponent = (target_hex >> 24) & 0xff
-    mantissa = target_hex & 0x00ffffff
+    target_hex = int(difficulty_target, 16)
+    exponent = len(difficulty_target) // 2
+    mantissa = target_hex >> (8 * (exponent - 3))
     return (exponent << 24) | mantissa
 
 
@@ -295,6 +295,7 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
     merkle_root = calculate_merkle_root(valid_transactions)
     timestamp = int(time.time())
     bits = difficulty_target_to_bits(difficulty_target)
+    print("bits:",bits)
     nonce = 0
 
     block_header = (
@@ -306,7 +307,6 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
         + int.to_bytes(nonce, 4, "little")
     )
     print("Block header:",len(block_header))
-
     # Mine the block
     
     while True:
@@ -327,24 +327,7 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
             + int.to_bytes(nonce, 4, "little")
         )
     print("Block mined:", block_header_hash)
-    
-    
-    # block_header_hash = None
-    # while block_header_hash is None or block_header_hash > int.from_bytes(
-    #     bytes.fromhex(difficulty_target), "big"
-    # ):
-    #     nonce += 1
-    #     block_header = (
-    #         int.to_bytes(1, 4, "little")
-    #         + prev_block_hash
-    #         + merkle_root
-    #         + int.to_bytes(timestamp, 4, "little")
-    #         + int.to_bytes(bits, 4, "little")
-    #         + int.to_bytes(nonce, 4, "little")
-    #     )
-    #     block_header_hash = int.from_bytes(
-    #         hashlib.sha256(hashlib.sha256(block_header).digest()).digest(), "big"
-    #     )
+    #print bits 
 
     # Create a block
     block = {
@@ -359,8 +342,8 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
 
 def main():
     # Read transactions from mempool
-    mempool_path = "mempool"
-    # mempool_path = "code-challenge-2024-ibraheem15/mempool"
+    # mempool_path = "mempool"
+    mempool_path = "code-challenge-2024-ibraheem15/mempool"
     transactions = read_transactions(mempool_path)
 
     # Mine a block
