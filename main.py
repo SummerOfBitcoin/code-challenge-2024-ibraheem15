@@ -316,13 +316,13 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
         if int(block_header_hash) < int(difficulty_target, 16):
             break
         nonce += 1
-        bits = 6331415
+        bits = 4294901791
         block_header = (
             int.to_bytes(1, 4, "little")
             + prev_block_hash
             + merkle_root
             + int.to_bytes(timestamp, 4, "little")
-            + int.to_bytes(bits, 4, "little")
+            + int.to_bytes(bits, 4, "big")
             + int.to_bytes(nonce, 4, "little")
         )
     print("Block mined:", block_header_hash)
