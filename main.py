@@ -318,7 +318,7 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
         ):
             break
         nonce += 1
-        bits = 486604799
+        bits = 3926331415
         block_header = (
             int.to_bytes(1, 4, "little")
             + prev_block_hash
