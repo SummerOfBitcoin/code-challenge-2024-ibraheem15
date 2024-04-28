@@ -235,26 +235,11 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
     
     # Update the block header in the block
     block["header"] = json.dumps(block_header, indent=4)
+    print("Block header: ", block["header"])
     
-    #convert block header to bytes
-    block_header_bytes = json.dumps(block_header, sort_keys=True).encode()
-    # Calculate the block hash
-    block_hash = hashlib.sha256(block_header_bytes).hexdigest()
-    print("Block hash: ", len(block_hash))
-    
-    block_header = {
-        int.to_bytes(block_header["version"], 4, byteorder='big'),
-        block_header["prev_block"].encode(),
-        block_header["merkle_root"].encode(),
-        int.to_bytes(block_header["timestamp"], 4, byteorder='big'),
-        block_header["bits"].encode(),
-        int.to_bytes(block_header["nonce"], 4, byteorder='big')
-    }
-    
-    print("Block header: ", block_header)
-    
-    block["header"] = block_header
-    
+    block_hash = hashlib.sha256(hashlib.sha256(block["header"].encode()).digest()).hexdigest()
+    print("Block hash: ", block_hash)
+    block["header"] = block_hash
 
     return block
 
