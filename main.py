@@ -197,26 +197,32 @@ def calculate_merkle_root(transactions):
             ).digest()
         ).digest()
 
-    hashes = [
-        hashlib.sha256(
-            hashlib.sha256(json.dumps(tx, sort_keys=True).encode()).digest()
-        ).digest()
-        for tx in transactions
+    # reversed_txids = [(tx["vin"][0]["txid"])[::-1] for tx in transactions]
+    reversed_txids = [
+        tx["vin"][0]["txid"].encode("utf-8")[::-1].hex() for tx in transactions
     ]
-    while len(hashes) > 1:
-        new_hashes = []
-        for i in range(0, len(hashes), 2):
-            if i + 1 < len(hashes):
-                new_hashes.append(
-                    hashlib.sha256(
-                        hashlib.sha256(hashes[i] + hashes[i + 1]).digest()
-                    ).digest()
-                )
-            else:
-                new_hashes.append(hashes[i])
-        hashes = new_hashes
+    print("Reversed txids:", reversed_txids)
 
-    return hashes[0]
+    def hash256(hex_string):
+        byte_string = bytes.fromhex(hex_string)
+        return hashlib.sha256(hashlib.sha256(byte_string).digest()).hexdigest()
+
+    while len(reversed_txids) > 1:
+        next_level = []
+
+        for i in range(0, len(reversed_txids), 2):
+            if i + 1 == len(reversed_txids):
+                # pairHash = hash256(level[i] + level[i])
+                pairHash = hash256(reversed_txids[i] + reversed_txids[i])
+
+            else:
+                # pairHash = hash256(level[i] + level[i + 1]);
+                pairHash = hash256(reversed_txids[i] + reversed_txids[i + 1])
+            next_level.append(pairHash)
+        reversed_txids = next_level
+
+    print("Merkle root:", reversed_txids[0])
+    return reversed_txids[0]
 
 
 def difficulty_target_to_bits(difficulty_target):
@@ -306,20 +312,20 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
     nonce = 0
 
     block_header = (
-        int.to_bytes(1, 4, "little")
+        int.to_bytes(5, 4, "little")
         + prev_block_hash
-        + merkle_root
+        + bytes.fromhex(merkle_root)
         + int.to_bytes(timestamp, 4, "little")
         + int.to_bytes(bits, 4, "little")
         + int.to_bytes(nonce, 4, "little")
     )
     print("Block header:", len(block_header))
+
     # Mine the block
     def calculate_hash(data):
         block_header_hash = hashlib.sha256(hashlib.sha256(data).digest()).digest()[::-1]
         return block_header_hash
-        
-    
+
     while True:
         block_header_hash = calculate_hash(block_header)
         if int.from_bytes(block_header_hash, "big") < int(difficulty_target, 16):
@@ -328,14 +334,14 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
         block_header = (
             int.to_bytes(5, 4, "little")
             + prev_block_hash
-            + merkle_root
+            + bytes.fromhex(merkle_root)
             + int.to_bytes(timestamp, 4, "little")
             + int.to_bytes(bits, 4, "big")
             + int.to_bytes(nonce, 4, "little")
         )
-        
+
     print("Block mined:", block_header_hash)
-    
+
     # Compare the target with the reverse of the double SHA-256 hash of the block header
     target = int(difficulty_target, 16)
     print("Target-----:", target)
@@ -343,7 +349,6 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
         print("Block mined:", block_header_hash)
     else:
         print("Block hash does not meet the target")
-      
 
     # Create a block
     block = {
