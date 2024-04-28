@@ -315,54 +315,7 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
     )
     print("Block header:", len(block_header))
     # Mine the block
-
-    # while True:
-    #     block_header_hash = int.from_bytes(
-    #         hashlib.sha256(hashlib.sha256(block_header).digest()).digest(), "big"
-    #     )
-    #     if int(block_header_hash) < int(difficulty_target, 16):
-    #         break
-    #     nonce += 1
-    #     bits = 4294901791
-    #     block_header = (
-    #         int.to_bytes(1, 4, "little")
-    #         + prev_block_hash
-    #         + merkle_root
-    #         + int.to_bytes(timestamp, 4, "little")
-    #         + int.to_bytes(bits, 4, "big")
-    #         + int.to_bytes(nonce, 4, "little")
-    #     )
-
-        
-
-    
-    # block_header_hash = calculate_hash(block_header, prev_block_hash, nonce)
-    # bits = 4294901791
-    # while int(block_header_hash, 16) > int(difficulty_target, 16):
-    #     nonce += 1
-    #     block_header = (
-    #         int.to_bytes(1, 4, "little")
-    #         + prev_block_hash
-    #         + merkle_root
-    #         + int.to_bytes(timestamp, 4, "little")
-    #         + int.to_bytes(bits, 4, "big")
-    #         + int.to_bytes(nonce, 4, "little")
-    #     )  
-    #     block_header_hash = calculate_hash(block_header, prev_block_hash, nonce)
     def calculate_hash(data):
-        """
-        Calculates the SHA-256 hash of the
-        block's data, previous hash, and nonce.
-        """
-        # sha = hashlib.sha256()
-        # sha.update(
-        #     str(data).encode("utf-8")
-        #     + str(previous_hash).encode("utf-8")
-        #     + str(nonce).encode("utf-8")
-        # )
-        # return sha.hexdigest()
-        
-        # block_header_hex = data.hex()
         block_header_hash = hashlib.sha256(hashlib.sha256(data).digest()).digest()[::-1]
         return block_header_hash
         
@@ -373,7 +326,7 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
             break
         nonce += 1
         block_header = (
-            int.to_bytes(1, 4, "little")
+            int.to_bytes(5, 4, "little")
             + prev_block_hash
             + merkle_root
             + int.to_bytes(timestamp, 4, "little")
