@@ -50,7 +50,6 @@ def validate_transaction(transaction):
             return False
 
     # Check if each vin item has txid, vout, prevout, scriptsig, witness, is_coinbase, and sequence
-    print("Transaction ID: ", transaction["vin"][0]["txid"])
     for vin_item in transaction["vin"]:
         missing_attributes = [
             attr
@@ -201,7 +200,6 @@ def calculate_merkle_root(transactions):
     reversed_txids = [
         tx["vin"][0]["txid"].encode("utf-8")[::-1].hex() for tx in transactions
     ]
-    print("Reversed txids:", reversed_txids)
 
     def hash256(hex_string):
         byte_string = bytes.fromhex(hex_string)
