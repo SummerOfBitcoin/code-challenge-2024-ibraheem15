@@ -332,24 +332,46 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
     #         + int.to_bytes(bits, 4, "big")
     #         + int.to_bytes(nonce, 4, "little")
     #     )
-    def calculate_hash(data, previous_hash, nonce):
+
+        
+
+    
+    # block_header_hash = calculate_hash(block_header, prev_block_hash, nonce)
+    # bits = 4294901791
+    # while int(block_header_hash, 16) > int(difficulty_target, 16):
+    #     nonce += 1
+    #     block_header = (
+    #         int.to_bytes(1, 4, "little")
+    #         + prev_block_hash
+    #         + merkle_root
+    #         + int.to_bytes(timestamp, 4, "little")
+    #         + int.to_bytes(bits, 4, "big")
+    #         + int.to_bytes(nonce, 4, "little")
+    #     )  
+    #     block_header_hash = calculate_hash(block_header, prev_block_hash, nonce)
+    def calculate_hash(data):
         """
         Calculates the SHA-256 hash of the
         block's data, previous hash, and nonce.
         """
-        sha = hashlib.sha256()
-        sha.update(
-            str(data).encode("utf-8")
-            + str(previous_hash).encode("utf-8")
-            + str(nonce).encode("utf-8")
-        )
-        return sha.hexdigest()
-
-    block_header_hash = calculate_hash(block_header, prev_block_hash, nonce)
-    while int(block_header_hash, 16) > int(difficulty_target, 16):
-        block_header_hash = calculate_hash(block_header, prev_block_hash, nonce)
+        # sha = hashlib.sha256()
+        # sha.update(
+        #     str(data).encode("utf-8")
+        #     + str(previous_hash).encode("utf-8")
+        #     + str(nonce).encode("utf-8")
+        # )
+        # return sha.hexdigest()
+        
+        # block_header_hex = data.hex()
+        block_header_hash = hashlib.sha256(hashlib.sha256(data).digest()).digest()[::-1]
+        return block_header_hash
+        
+    
+    while True:
+        block_header_hash = calculate_hash(block_header)
+        if int.from_bytes(block_header_hash, "big") < int(difficulty_target, 16):
+            break
         nonce += 1
-        bits = 4294901791
         block_header = (
             int.to_bytes(1, 4, "little")
             + prev_block_hash
@@ -359,13 +381,16 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
             + int.to_bytes(nonce, 4, "little")
         )
         
-    # check if the block header hash is less than the difficulty target
-    # print(hashlib.sha256(hashlib.sha256(block_header.hex().encode()).digest()).hexdigest())
-    # if hashlib.sha256(hashlib.sha256(block_header.hex().encode()).digest()).hexdigest() < difficulty_target:
-    #     print("Block header hash is less than the difficulty target") 
-    
-      
     print("Block mined:", block_header_hash)
+    
+    # Compare the target with the reverse of the double SHA-256 hash of the block header
+    target = int(difficulty_target, 16)
+    print("Target-----:", target)
+    if int.from_bytes(block_header_hash, "big") < target:
+        print("Block mined:", block_header_hash)
+    else:
+        print("Block hash does not meet the target")
+      
 
     # Create a block
     block = {
