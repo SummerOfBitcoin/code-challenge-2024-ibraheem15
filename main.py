@@ -528,13 +528,13 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
     
     def calculate_wtxid_commitment(data):
         witness_root = calculate_merkle_root2(data)
-        print("Witness root:", witness_root)
         witness_root = witness_root + "0000000000000000000000000000000000000000000000000000000000000000"
         return hashlib.sha256(witness_root.encode()).hexdigest()
     
     # wtxids = [coinbaseTx.getHash(true).reverse().toString('hex')]
-    wtxids =   [hashlib.sha256(hashlib.sha256(coinbase_transaction_hash.encode()).hexdigest().encode()).hexdigest()]
-    wtxids += [tx["vin"][0]["txid"] for tx in valid_transactions[1:7]]
+    wtxids =   [coinbase_transaction["vin"][0]["txid"][::-1]]
+    print("Coinbase transaction hash:", wtxids)
+    wtxids += [tx["vin"][0]["txid"][::-1] for tx in valid_transactions[1:7]]
     witness_commiment = calculate_wtxid_commitment(wtxids)
     
     scriptPubKeyForWitnessCommitment = "6a24aa21a9ed" + witness_commiment 
