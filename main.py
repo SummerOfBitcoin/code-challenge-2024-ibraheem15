@@ -497,12 +497,56 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
     
     coinbase_transaction_hash = calculate_hash_serialized(coinbase_transaction)
     print("Coinbase transaction hash:", coinbase_transaction_hash)
+    
+    def calculate_merkle_root2(transactions2):
+        """
+        Calculate the Merkle root of a list of transactions.
+        """
+        if len(transactions2) == 1:
+            return hashlib.sha256(
+                hashlib.sha256(
+                    json.dumps(transactions2[0], sort_keys=True).encode()
+                ).digest()
+            ).digest()
+
+        transactions2 = transactions2[:7]
+        print("Transactions2:", transactions2)
+        
+        reversed_txids = [bytes.fromhex(tx)[::-1] for tx in transactions2]
+        
+        while len(reversed_txids) > 1:
+            if len(reversed_txids) % 2 != 0:
+                reversed_txids.append(reversed_txids[-1])
+            reversed_txids = [
+                hashlib.sha256(
+                    hashlib.sha256(reversed_txids[i] + reversed_txids[i + 1]).digest()
+                ).digest()
+                for i in range(0, len(reversed_txids), 2)
+            ]
+        print("Merkle root:", reversed_txids[0].hex())
+        return reversed_txids[0].hex()
+    
+    def calculate_wtxid_commitment(data):
+        witness_root = calculate_merkle_root2(data)
+        print("Witness root:", witness_root)
+        witness_root = witness_root + "0000000000000000000000000000000000000000000000000000000000000000"
+        return hashlib.sha256(witness_root.encode()).hexdigest()
+    
+    # wtxids = [coinbaseTx.getHash(true).reverse().toString('hex')]
+    wtxids =   [hashlib.sha256(hashlib.sha256(coinbase_transaction_hash.encode()).hexdigest().encode()).hexdigest()]
+    wtxids += [tx["vin"][0]["txid"] for tx in valid_transactions[1:7]]
+    witness_commiment = calculate_wtxid_commitment(wtxids)
+    
+    scriptPubKeyForWitnessCommitment = "6a24aa21a9ed" + witness_commiment 
+    print("Witness commitment:", scriptPubKeyForWitnessCommitment)    
+    
+    
 
     # Create a block
     block = {
         "header": block_header.hex(),
         # "coinbase": coinbase_transaction["vin"][0]["txid"],
-        "coinbase": "010000000001010000000000000000000000000000000000000000000000000000000000000000ffffffff2503233708184d696e656420627920416e74506f6f6c373946205b8160a4256c0000946e0100ffffffff02f595814a000000001976a914edf10a7fac6b32e24daa5305c723f3de58db1bc888ac0000000000000000266a24aa21a9edfaa194df59043645ba0f58aad74bfd5693fa497093174d12a4bb3b0574a878db0120000000000000000000000000000000000000000000000000000000000000000000000000",
+        "coinbase": "010000000001010000000000000000000000000000000000000000000000000000000000000000ffffffff2503233708184d696e656420627920416e74506f6f6c373946205b8160a4256c0000946e0100ffffffff02f595814a000000001976a914edf10a7fac6b32e24daa5305c723f3de58db1bc888ac0000000000000000266a24aa21a9edd2708c5cd8a68b56eee13cbd0769bbe94f421da0d1462046b83780894e5c14f70120000000000000000000000000000000000000000000000000000000000000000000000000",
         "txids": [coinbase_transaction["vin"][0]["txid"]]
         + [tx["txid"] for tx in valid_transactions[1:7]],
     }
