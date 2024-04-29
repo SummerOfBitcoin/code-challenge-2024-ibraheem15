@@ -197,6 +197,7 @@ def calculate_merkle_root(transactions):
             ).digest()
         ).digest()
 
+    transactions = transactions[:7]
     reversed_txids = [bytes.fromhex(tx["vin"][0]["txid"])[::-1] for tx in transactions]
     while len(reversed_txids) > 1:
         if len(reversed_txids) % 2 != 0:
@@ -298,8 +299,11 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
 
     # Create a block header
     prev_block_hash = bytes.fromhex(coinbase_transaction["vin"][0]["txid"])
+    # valid_transactions = valid_transactions[:7]
+    # print("Valid transactions:", list(map(lambda tx: tx["vin"][0]["txid"], valid_transactions)))
     merkle_root = calculate_merkle_root(valid_transactions)
     timestamp = int(time.time())
+    print("Timestamp:", timestamp)
     bits = difficulty_target_to_bits(difficulty_target)
     # print bits in hex
     print("Bits in hex:", hex(bits))
@@ -343,6 +347,8 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
         print("Block mined:", block_header_hash)
     else:
         print("Block hash does not meet the target")
+        
+    print(block_header.hex())
 
     # Create a block
     block = {
