@@ -91,6 +91,7 @@ def validate_transaction(transaction):
     if vin_value < vout_value:
         print("Sum of input values is less than sum of output values")
         return False
+    
 
     return True
 
@@ -234,7 +235,7 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
         "locktime": 0,
         "vin": [
             {
-                "txid": "0000000000000000000000000000000000000000000000000000000000000000",
+                "txid": "00000964b698b728022e6d180add7b2c060676e522ab2907f06198af7b2d0b99",
                 "sequence": 4294967295,
             }
         ],
@@ -348,7 +349,7 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
         "header": block_header.hex(),
         "coinbase": json.dumps(coinbase_transaction),
         "txids": [coinbase_transaction["vin"][0]["txid"]]
-        + [tx["txid"] for tx in valid_transactions[1:]],
+        + [tx["txid"] for tx in valid_transactions[1:7]],
     }
 
     return block
