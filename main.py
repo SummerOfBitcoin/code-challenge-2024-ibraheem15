@@ -235,7 +235,7 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
         "locktime": 0,
         "vin": [
             {
-                "txid": "00000964b698b728022e6d180add7b2c060676e522ab2907f06198af7b2d0b99",
+                "txid": "0000000000000000000000000000000000000000000000000000000000000000",
                 "sequence": 4294967295,
             }
         ],
