@@ -304,6 +304,7 @@ def calculate_hash_serialized(data):
         )
         concat += data["vout"][i]["scriptpubkey"]
 
+    concat += "0120" + data["vin"][0]["witness"][0]
     concat += str(data["locktime"].to_bytes(4, byteorder="little").hex())
     print(concat)
 
@@ -352,6 +353,7 @@ def calculate_hash_serialized(data):
 
     hash = hashlib.sha256(hash.encode()).hexdigest()
     print(hash)
+    
     return concat
 
 def mine_block(transactions, difficulty_target, max_fee, max_score, passing_score):
