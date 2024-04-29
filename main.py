@@ -91,7 +91,6 @@ def validate_transaction(transaction):
     if vin_value < vout_value:
         print("Sum of input values is less than sum of output values")
         return False
-    
 
     return True
 
@@ -203,11 +202,14 @@ def calculate_merkle_root(transactions):
         if len(reversed_txids) % 2 != 0:
             reversed_txids.append(reversed_txids[-1])
         reversed_txids = [
-            hashlib.sha256(hashlib.sha256(reversed_txids[i] + reversed_txids[i + 1]).digest()).digest()
+            hashlib.sha256(
+                hashlib.sha256(reversed_txids[i] + reversed_txids[i + 1]).digest()
+            ).digest()
             for i in range(0, len(reversed_txids), 2)
         ]
     print("Merkle root:", reversed_txids[0].hex())
     return reversed_txids[0].hex()
+
 
 def difficulty_target_to_bits(difficulty_target):
     """
@@ -219,13 +221,13 @@ def difficulty_target_to_bits(difficulty_target):
     # Calculate the exponent and mantissa
     exponent = 0
     mantissa = difficulty_int
-    while (mantissa & 0xff) == 0:
+    while (mantissa & 0xFF) == 0:
         mantissa >>= 8
         exponent += 1
-        
+
     # Calculate the compact representation
     bits = (exponent << 24) | mantissa
-    return 0x1f00ffff
+    return 0x1F00FFFF
     return bits
 
 
@@ -237,21 +239,39 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
         "vin": [
             {
                 "txid": "0000000000000000000000000000000000000000000000000000000000000000",
-                "sequence": 4294967295,
+                "vout": 0xFFFFFFFF,
+                "prevout": {
+                    "scriptpubkey": "a914e280d91ab0f233b9fad52069c3f496ec9990ae7087",
+                    "scriptpubkey_asm": "OP_HASH160 OP_PUSHBYTES_20 e280d91ab0f233b9fad52069c3f496ec9990ae70 OP_EQUAL",
+                    "scriptpubkey_type": "p2sh",
+                    "scriptpubkey_address": "3NLezRBqRYYGBvNdQSW9etkvAb5f3fr1Kp",
+                    "value": 600,
+                },
+                "scriptsig": "04233fa04e028b12",
+                "scriptsig_asm": "OP_PUSHBYTES_22 00149bf838bc3ae119819414f7f482bacb3df7d2d2e6",
+                "witness": [
+                    "000000000000000000000000000000000000000000000000000000000000000000",
+                ],
+                "is_coinbase": False,
+                "sequence": 0xFFFFFFFF,
+                "inner_redeemscript_asm": "OP_0 OP_PUSHBYTES_20 9bf838bc3ae119819414f7f482bacb3df7d2d2e6",
             }
         ],
         "vout": [
             {
-                "value": 50,
-                "n": 0,
-                "scriptPubKey": {
-                    "asm": "OP_DUP OP_HASH160 <pubKeyHash> OP_EQUALVERIFY OP_CHECKSIG",
-                    "hex": "76a914<pubKeyHash>88ac",
-                    "reqSigs": 1,
-                    "type": "pubkeyhash",
-                    "addresses": ["coinbase"],
-                },
-            }
+                "scriptpubkey": "76a9142c30a6aaac6d96687291475d7d52f4b469f665a688ac",
+                "scriptpubkey_asm": "OP_HASH160 OP_PUSHBYTES_20 e280d91ab0f233b9fad52069c3f496ec9990ae70 OP_EQUAL",
+                "scriptpubkey_type": "p2sh",
+                "scriptpubkey_address": "3NLezRBqRYYGBvNdQSW9etkvAb5f3fr1Kp",
+                "value": 1212100,
+            },
+            {
+                "scriptpubkey": "76a9142c30a6aaac6d96687291475d7d52f4b469f665a688ac",
+                "scriptpubkey_asm": "OP_PUSHNUM_1 OP_PUSHBYTES_32 19283abbbc6a440423b9765a55964f7176eb8e247713a9ac7475cfe90c7ed9be",
+                "scriptpubkey_type": "v1_p2tr",
+                "scriptpubkey_address": "bc1pry5r4waudfzqggaewed9t9j0w9mwhr3ywuf6ntr5wh87jrr7mxlq8trfzs",
+                "value": 000000000,
+            },
         ],
     }
 
@@ -347,13 +367,14 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
         print("Block mined:", block_header_hash)
     else:
         print("Block hash does not meet the target")
-        
+
     print(block_header.hex())
 
     # Create a block
     block = {
         "header": block_header.hex(),
-        "coinbase": json.dumps(coinbase_transaction),
+        # "coinbase": coinbase_transaction["vin"][0]["txid"],
+        "coinbase": "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0804233fa04e028b12ffffffff0130490b2a010000004341047eda6bd04fb27cab6e7c28c99b94977f073e912f25d1ff7165d9c95cd9bbe6da7e7ad7f2acb09e0ced91705f7616af53bee51a238b7dc527f2be0aa60469d140ac00000000",
         "txids": [coinbase_transaction["vin"][0]["txid"]]
         + [tx["txid"] for tx in valid_transactions[1:7]],
     }
@@ -368,7 +389,9 @@ def main():
     transactions = read_transactions(mempool_path)
 
     # Mine a block
-    difficulty_target = "0000ffff00000000000000000000000000000000000000000000000000000000"
+    difficulty_target = (
+        "0000ffff00000000000000000000000000000000000000000000000000000000"
+    )
     max_fee = 20616923
     max_score = 100
     passing_score = 60
