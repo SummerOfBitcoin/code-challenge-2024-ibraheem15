@@ -502,7 +502,7 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
     block = {
         "header": block_header.hex(),
         # "coinbase": coinbase_transaction["vin"][0]["txid"],
-        "coinbase": coinbase_transaction_hash,
+        "coinbase": "010000000001010000000000000000000000000000000000000000000000000000000000000000ffffffff2503233708184d696e656420627920416e74506f6f6c373946205b8160a4256c0000946e0100ffffffff02f595814a000000001976a914edf10a7fac6b32e24daa5305c723f3de58db1bc888ac0000000000000000266a24aa21a9edfaa194df59043645ba0f58aad74bfd5693fa497093174d12a4bb3b0574a878db0120000000000000000000000000000000000000000000000000000000000000000000000000",
         "txids": [coinbase_transaction["vin"][0]["txid"]]
         + [tx["txid"] for tx in valid_transactions[1:7]],
     }
