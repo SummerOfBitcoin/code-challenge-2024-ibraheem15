@@ -231,6 +231,129 @@ def difficulty_target_to_bits(difficulty_target):
     return bits
 
 
+
+def calculate_hash_serialized(data):
+
+    # version and locktime to 4 bytes
+    concat = str(data["version"].to_bytes(4, byteorder="little").hex())
+    # length of vin
+    concat += str(len(data["vin"]).to_bytes(1, byteorder="big").hex())
+    # concat += str(data["vin"][0]["txid"])
+    # reversed txid by 2 digits
+    # c925 = 25c9
+    concat += str(data["vin"][0]["txid"][62:64])
+    concat += str(data["vin"][0]["txid"][60:62])
+    concat += str(data["vin"][0]["txid"][58:60])
+    concat += str(data["vin"][0]["txid"][56:58])
+    concat += str(data["vin"][0]["txid"][54:56])
+    concat += str(data["vin"][0]["txid"][52:54])
+    concat += str(data["vin"][0]["txid"][50:52])
+    concat += str(data["vin"][0]["txid"][48:50])
+    concat += str(data["vin"][0]["txid"][46:48])
+    concat += str(data["vin"][0]["txid"][44:46])
+    concat += str(data["vin"][0]["txid"][42:44])
+    concat += str(data["vin"][0]["txid"][40:42])
+    concat += str(data["vin"][0]["txid"][38:40])
+    concat += str(data["vin"][0]["txid"][36:38])
+    concat += str(data["vin"][0]["txid"][34:36])
+    concat += str(data["vin"][0]["txid"][32:34])
+    concat += str(data["vin"][0]["txid"][30:32])
+    concat += str(data["vin"][0]["txid"][28:30])
+    concat += str(data["vin"][0]["txid"][26:28])
+    concat += str(data["vin"][0]["txid"][24:26])
+    concat += str(data["vin"][0]["txid"][22:24])
+    concat += str(data["vin"][0]["txid"][20:22])
+    concat += str(data["vin"][0]["txid"][18:20])
+    concat += str(data["vin"][0]["txid"][16:18])
+    concat += str(data["vin"][0]["txid"][14:16])
+    concat += str(data["vin"][0]["txid"][12:14])
+    concat += str(data["vin"][0]["txid"][10:12])
+    concat += str(data["vin"][0]["txid"][8:10])
+    concat += str(data["vin"][0]["txid"][6:8])
+    concat += str(data["vin"][0]["txid"][4:6])
+    concat += str(data["vin"][0]["txid"][2:4])
+    concat += str(data["vin"][0]["txid"][0:2])
+
+    print(concat)
+    concat += str(data["vin"][0]["vout"].to_bytes(4, byteorder="little").hex())
+    # concat += "00"
+    concat += (len(data["vin"][0]["scriptsig"]) // 2).to_bytes(1, byteorder="big").hex()
+    concat += str(data["vin"][0]["scriptsig"])
+    concat += str(data["vin"][0]["sequence"].to_bytes(4, byteorder="big").hex())
+
+    # concat += str(len(data["vin"][0]["witness"]).to_bytes(1, byteorder="big").hex())
+    concat += (len(data["vout"])).to_bytes(1, byteorder="big").hex()
+    for i in range(len(data["vout"])):
+        value = data["vout"][i]["value"].to_bytes(8, byteorder="big").hex()
+        # reverse the value
+        value = (
+            value[14:16]
+            + value[12:14]
+            + value[10:12]
+            + value[8:10]
+            + value[6:8]
+            + value[4:6]
+            + value[2:4]
+            + value[0:2]
+        )
+        concat += value
+        concat += (
+            (len(data["vout"][i]["scriptpubkey"]) // 2)
+            .to_bytes(1, byteorder="big")
+            .hex()
+        )
+        concat += data["vout"][i]["scriptpubkey"]
+
+    concat += str(data["locktime"].to_bytes(4, byteorder="little").hex())
+    print(concat)
+
+    # get filename from serialized data
+    # hash256 your transaction to get the txid then reverse the txid and sha256 it again
+    hash = hashlib.sha256(
+        hashlib.sha256(concat.encode()).hexdigest().encode()
+    ).hexdigest()
+    print(hash)
+    # reverse the bytes order
+    hash = (
+        hash[62:64]
+        + hash[60:62]
+        + hash[58:60]
+        + hash[56:58]
+        + hash[54:56]
+        + hash[52:54]
+        + hash[50:52]
+        + hash[48:50]
+        + hash[46:48]
+        + hash[44:46]
+        + hash[42:44]
+        + hash[40:42]
+        + hash[38:40]
+        + hash[36:38]
+        + hash[34:36]
+        + hash[32:34]
+        + hash[30:32]
+        + hash[28:30]
+        + hash[26:28]
+        + hash[24:26]
+        + hash[22:24]
+        + hash[20:22]
+        + hash[18:20]
+        + hash[16:18]
+        + hash[14:16]
+        + hash[12:14]
+        + hash[10:12]
+        + hash[8:10]
+        + hash[6:8]
+        + hash[4:6]
+        + hash[2:4]
+        + hash[0:2]
+    )
+    # hash = hash[::-1]
+
+    hash = hashlib.sha256(hash.encode()).hexdigest()
+    print(hash)
+    return concat
+
 def mine_block(transactions, difficulty_target, max_fee, max_score, passing_score):
     # Create a coinbase transaction
     coinbase_transaction = {
@@ -369,12 +492,15 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
         print("Block hash does not meet the target")
 
     print(block_header.hex())
+    
+    coinbase_transaction_hash = calculate_hash_serialized(coinbase_transaction)
+    print("Coinbase transaction hash:", coinbase_transaction_hash)
 
     # Create a block
     block = {
         "header": block_header.hex(),
         # "coinbase": coinbase_transaction["vin"][0]["txid"],
-        "coinbase": "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0804233fa04e028b12ffffffff0130490b2a010000004341047eda6bd04fb27cab6e7c28c99b94977f073e912f25d1ff7165d9c95cd9bbe6da7e7ad7f2acb09e0ced91705f7616af53bee51a238b7dc527f2be0aa60469d140ac00000000",
+        "coinbase": coinbase_transaction_hash,
         "txids": [coinbase_transaction["vin"][0]["txid"]]
         + [tx["txid"] for tx in valid_transactions[1:7]],
     }
