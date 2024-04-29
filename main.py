@@ -107,7 +107,7 @@ def read_transactions(mempool_path):
 
                 # Validate the transaction
                 if not validate_transaction(transaction):
-                    print(f"Transaction in {filename} is invalid")
+                    # print(f"Transaction in {filename} is invalid")
                     continue
 
                 # Add attributes to the transaction object
