@@ -700,8 +700,6 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
     scriptPubKeyForWitnessCommitment = "6a24aa21a9ed" + witness_commiment
     print("Witness commitment:", scriptPubKeyForWitnessCommitment)
     
-    coinbase_header = calculate_hash_serialized_for_wTXID(coinbase_transaction)
-
     # Create a block
     block = {
         "header": block_header.hex(),
