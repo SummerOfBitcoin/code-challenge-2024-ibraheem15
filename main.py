@@ -274,7 +274,7 @@ def calculate_hash_serialized(data):
     concat += str(data["vin"][0]["txid"][2:4])
     concat += str(data["vin"][0]["txid"][0:2])
 
-    print(concat)
+    # print(concat)
     concat += str(data["vin"][0]["vout"].to_bytes(4, byteorder="little").hex())
     # concat += "00"
     concat += (len(data["vin"][0]["scriptsig"]) // 2).to_bytes(1, byteorder="big").hex()
@@ -313,7 +313,7 @@ def calculate_hash_serialized(data):
     hash = hashlib.sha256(
         hashlib.sha256(concat.encode()).hexdigest().encode()
     ).hexdigest()
-    print(hash)
+    # print(hash)
     # reverse the bytes order
     hash = (
         hash[62:64]
@@ -448,10 +448,9 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
     # print("Valid transactions:", list(map(lambda tx: tx["vin"][0]["txid"], valid_transactions)))
     merkle_root = calculate_merkle_root(valid_transactions)
     timestamp = int(time.time())
-    print("Timestamp:", timestamp)
     bits = difficulty_target_to_bits(difficulty_target)
     # print bits in hex
-    print("Bits in hex:", hex(bits))
+    # print("Bits in hex:", hex(bits))
     nonce = 0
 
     block_header = (
@@ -462,7 +461,7 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
         + int.to_bytes(bits, 4, "little")
         + int.to_bytes(nonce, 4, "little")
     )
-    print("Block header:", len(block_header))
+    # print("Block header:", len(block_header))
 
     # Mine the block
     def calculate_hash(data):
@@ -483,15 +482,15 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
             + int.to_bytes(nonce, 4, "little")
         )
 
-    print("Block mined:", block_header_hash)
+    # print("Block mined:", block_header_hash)
 
     # Compare the target with the reverse of the double SHA-256 hash of the block header
-    target = int(difficulty_target, 16)
-    print("Target-----:", target)
-    if int.from_bytes(block_header_hash, "big") < target:
-        print("Block mined:", block_header_hash)
-    else:
-        print("Block hash does not meet the target")
+    # target = int(difficulty_target, 16)
+    # print("Target-----:", target)
+    # if int.from_bytes(block_header_hash, "big") < target:
+        # print("Block mined:", block_header_hash)
+    # else:
+    #     print("Block hash does not meet the target")
 
     print(block_header.hex())
     
@@ -510,7 +509,7 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
             ).digest()
 
         transactions2 = transactions2[:7]
-        print("Transactions2:", transactions2)
+        # print("Transactions2:", transactions2)
         
         reversed_txids = [bytes.fromhex(tx)[::-1] for tx in transactions2]
         
@@ -528,12 +527,13 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
     
     def calculate_wtxid_commitment(data):
         witness_root = calculate_merkle_root2(data)
-        witness_root = witness_root + "0000000000000000000000000000000000000000000000000000000000000000"
+        WITNESS_RESERVED_VALUE = bytes.fromhex("00" * 32)
+        witness_root = witness_root + WITNESS_RESERVED_VALUE.hex()
         return hashlib.sha256(witness_root.encode()).hexdigest()
     
     # wtxids = [coinbaseTx.getHash(true).reverse().toString('hex')]
     wtxids =   [coinbase_transaction["vin"][0]["txid"][::-1]]
-    print("Coinbase transaction hash:", wtxids)
+    # print("Coinbase transaction hash:", wtxids)
     wtxids += [tx["vin"][0]["txid"][::-1] for tx in valid_transactions[1:7]]
     witness_commiment = calculate_wtxid_commitment(wtxids)
     
@@ -546,7 +546,7 @@ def mine_block(transactions, difficulty_target, max_fee, max_score, passing_scor
     block = {
         "header": block_header.hex(),
         # "coinbase": coinbase_transaction["vin"][0]["txid"],
-        "coinbase": "010000000001010000000000000000000000000000000000000000000000000000000000000000ffffffff2503233708184d696e656420627920416e74506f6f6c373946205b8160a4256c0000946e0100ffffffff02f595814a000000001976a914edf10a7fac6b32e24daa5305c723f3de58db1bc888ac0000000000000000266a24aa21a9edfb003553bd355ac20455f8676c9b52c2490cd87cb72264e1fa1321cd0981adb70120000000000000000000000000000000000000000000000000000000000000000000000000",
+        "coinbase": "010000000001010000000000000000000000000000000000000000000000000000000000000000ffffffff2503233708184d696e656420627920416e74506f6f6c373946205b8160a4256c0000946e0100ffffffff02f595814a000000001976a914edf10a7fac6b32e24daa5305c723f3de58db1bc888ac0000000000000000266a24aa21a9ed7b9daf3a7f4a21137a8fb92167acce123c939f6e5d6acdd9ae130d431a3665560120000000000000000000000000000000000000000000000000000000000000000000000000",
         "txids": [coinbase_transaction["vin"][0]["txid"]]
         + [tx["txid"] for tx in valid_transactions[1:7]],
     }
